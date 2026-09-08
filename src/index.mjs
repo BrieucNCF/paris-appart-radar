@@ -1,9 +1,9 @@
 // Orchestrateur : scrape multi-sites -> filtre critères -> dédup Supabase -> Telegram.
 import { chromium } from 'playwright';
 import { loadDotEnv, criteria } from './lib/config.mjs';
-import { matchesCriteria } from './lib/filter.mjs';
+import { matchesCriteria, fingerprint } from './lib/filter.mjs';
 import { geocodeArrondissement } from './lib/geo.mjs';
-import { insertNew } from './lib/supabase.mjs';
+import { insertNew, fetchFingerprints } from './lib/supabase.mjs';
 import { sendListing } from './lib/telegram.mjs';
 
 import * as pap from './sources/pap.mjs';
@@ -99,8 +99,22 @@ async function main() {
   }
 
   // dédup intra-lot par url
-  const seen = new Set();
-  candidates = candidates.filter((c) => (seen.has(c.url) ? false : (seen.add(c.url), true)));
+  const seenUrl = new Set();
+  candidates = candidates.filter((c) => (seenUrl.has(c.url) ? false : (seenUrl.add(c.url), true)));
+
+  // dédup INTER-sites : par empreinte (arrondissement|prix|surface|pièces),
+  // vs l'existant en base ET à l'intérieur du lot courant.
+  const existingFps = DRY ? new Set() : await fetchFingerprints();
+  const seenFp = new Set();
+  let dupCross = 0;
+  candidates = candidates.filter((c) => {
+    const fp = fingerprint(c);
+    if (!fp) return true;                 // info incomplète -> pas de dédup empreinte
+    if (existingFps.has(fp) || seenFp.has(fp)) { dupCross++; return false; }
+    seenFp.add(fp);
+    return true;
+  });
+  if (dupCross) console.log(`  (${dupCross} doublon(s) inter-sites écarté(s))`);
 
   // géocodage + nettoyage des champs internes
   const toInsert = candidates.map(({ _desc, _seed, ...c }) => {

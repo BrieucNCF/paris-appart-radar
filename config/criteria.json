@@ -1,7 +1,17 @@
 {
   "priceMax": 1800,
-  "surfaceMin": 30,
-  "arrondissements": [3, 5, 6, 11, 12, 13, 18, 19, 20],
+  "surfaceMin": 35,
+  "arrondissements": [
+    3,
+    5,
+    6,
+    11,
+    12,
+    13,
+    18,
+    19,
+    20
+  ],
   "roomsMin": 3,
   "bedroomsMin": 2,
   "roomsOrBedrooms": true,
