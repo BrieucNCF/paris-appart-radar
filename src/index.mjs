@@ -8,8 +8,9 @@ import { sendListing } from './lib/telegram.mjs';
 
 import * as pap from './sources/pap.mjs';
 import * as paruvendu from './sources/paruvendu.mjs';
+import * as bienici from './sources/bienici.mjs';
 
-const SOURCES = { pap, paruvendu };
+const SOURCES = { pap, paruvendu, bienici };
 
 loadDotEnv();
 const argv = process.argv.slice(2);
@@ -70,11 +71,19 @@ async function main() {
     (!only || s.name === only) && (!enabled.length || enabled.includes(s.name)));
   console.log(`Radar — sources: ${chosen.map((s) => s.name).join(', ')}${DRY ? ' (DRY RUN)' : ''}`);
 
-  const browser = await chromium.launch({ headless: true });
+  // Navigateur lancé seulement si une source en a besoin (les sources API l'évitent).
+  const needsBrowser = chosen.some((s) => !s.fetchListings);
+  const browser = needsBrowser ? await chromium.launch({ headless: true }) : null;
   let candidates = [];
   try {
     for (const src of chosen) {
-      const raw = await scrapeSource(browser, src);
+      let raw = [];
+      if (src.fetchListings) {
+        try { raw = await src.fetchListings(criteria); console.log(`  [${src.name}] ${raw.length} via API`); }
+        catch (e) { console.warn(`  [${src.name}] échec API: ${e.message.split('\n')[0]}`); }
+      } else {
+        raw = await scrapeSource(browser, src);
+      }
       const rows = raw.map((r) => normalize(src.name, r));
       // filtre critères
       const kept = [];
@@ -86,7 +95,7 @@ async function main() {
       candidates.push(...kept);
     }
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 
   // dédup intra-lot par url
