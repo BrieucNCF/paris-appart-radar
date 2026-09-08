@@ -7,9 +7,9 @@ import { insertNew } from './lib/supabase.mjs';
 import { sendListing } from './lib/telegram.mjs';
 
 import * as pap from './sources/pap.mjs';
-// import * as paruvendu from './sources/paruvendu.mjs';  // Phase suivante
+import * as paruvendu from './sources/paruvendu.mjs';
 
-const SOURCES = { pap /*, paruvendu */ };
+const SOURCES = { pap, paruvendu };
 
 loadDotEnv();
 const argv = process.argv.slice(2);
