@@ -51,5 +51,11 @@ Table `listings`, dédup sur `url` normalisée (unique). Voir `supabase/schema.s
 - [x] Phase 5 — notif Telegram (photo + infos + boutons) branchée
 - [x] Automatisation — repo public + cron GitHub Actions 15 min (ParuVendu) : run VERT
 - [x] Phase 6 — carte Leaflet live sur GitHub Pages (lit Supabase, filtres, popups, ?id=)
-- [ ] Phase 7 — extension : Logic-immo, Locservice, Bien'ici (tester cloud-friendly)
+- [x] Phase 7 (en cours) — Bien'ici ajouté (source API JSON realEstateAds.json, fetch pur,
+      cloud-friendly ✅ ~157 candidats). Cloud = ENABLED_SOURCES=paruvendu,bienici.
+      Reste possible : Logic-immo, Locservice (ROI incertain, Bien'ici agrège déjà beaucoup).
 - [ ] Sécu — rotation clé service_role + token Telegram
+
+## Note dédup inter-sites (futur)
+La dédup est sur `url` -> une même annonce publiée sur 2 sites (ex. Bien'ici + ParuVendu)
+apparaîtra 2 fois. À traiter si gênant (clé de similarité prix+surface+arrondissement).
