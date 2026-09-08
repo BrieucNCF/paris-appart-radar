@@ -16,18 +16,40 @@ Usage strictement personnel.
 - **Filtres génériques** (budget, arrondissements, surface, pièces, meublé) réglables côté app.
 - **On ne contacte personne à la place de l'utilisateur** : lien vers le site d'origine.
 
+## Bascule méthode (acté)
+- Abandon de l'email : scraping DIRECT via navigateur headless (Playwright).
+  Le curl simple est bloqué (Cloudflare/DataDome) presque partout.
+- Un adaptateur par site dans src/sources/ (buildUrls + extractInPage).
+
+## Contrainte IP datacenter vs résidentielle (importante)
+- Depuis GitHub Actions (IP datacenter), Cloudflare bloque **PAP** ; **ParuVendu** passe.
+- Donc : cloud (GitHub Actions) = sources "cloud-friendly" (ENABLED_SOURCES=paruvendu).
+  PAP tourne en LOCAL (`npm run poll`) depuis le Mac (IP résidentielle).
+- À tester en ajoutant Logic-immo/Locservice/Bien'ici : lesquels passent depuis le cloud.
+
+## Ressources live
+- Repo : https://github.com/BrieucNCF/paris-appart-radar (public)
+- Carte : https://brieucncf.github.io/paris-appart-radar/
+- Bot Telegram : @paris_appart_radar_bot
+- Cron : GitHub Actions .github/workflows/poll.yml, toutes les 15 min
+
+## À sécuriser avant "prod"
+- ROTATER la clé service_role Supabase + le token Telegram (exposés en clair dans le chat de build).
+  Mettre à jour .env local + secrets GitHub après rotation.
+
 ## Compromis assumé
-- Latence = délai d'envoi des alertes par chaque site. Pas de « temps réel » sous ce seuil sans payer.
+- Latence cloud = 15 min (cadence cron). Pas de vrai temps réel sous ce seuil gratuitement.
 
 ## Modèle de données
 Table `listings`, dédup sur `url` normalisée (unique). Voir `supabase/schema.sql`.
 
 ## Avancement
-- [x] Phase 1 — fondations Supabase (schéma + RLS + structure projet) — validé bout en bout
-- [x] Phase 2 — bot Telegram (@paris_appart_radar_bot) : token + chat_id dans .env, template figé
-      (voir docs/message-template.md). Ajouts : date/heure détection, chambres, bouton carte.
-- [ ] Phase 3 — ingestion email (PAP)
-- [ ] Phase 4 — enrichissement + géocodage
-- [ ] Phase 5 — notif Telegram
-- [ ] Phase 6 — carte
-- [ ] Phase 7 — extension autres sites
+- [x] Phase 1 — fondations Supabase (schéma text + RLS) — validé bout en bout
+- [x] Phase 2 — bot Telegram (@paris_appart_radar_bot), template figé
+- [x] Phase 3 — scraping direct Playwright : adaptateurs PAP + ParuVendu, filtre critères, dédup
+- [x] Phase 4 — géocodage arrondissement (centroïde + jitter) intégré
+- [x] Phase 5 — notif Telegram (photo + infos + boutons) branchée
+- [x] Automatisation — repo public + cron GitHub Actions 15 min (ParuVendu) : run VERT
+- [x] Phase 6 — carte Leaflet live sur GitHub Pages (lit Supabase, filtres, popups, ?id=)
+- [ ] Phase 7 — extension : Logic-immo, Locservice, Bien'ici (tester cloud-friendly)
+- [ ] Sécu — rotation clé service_role + token Telegram
