@@ -61,7 +61,10 @@ Table `listings`, dédup sur `url` normalisée (unique). Voir `supabase/schema.s
       Leboncoin/SeLoger (DataDome, bloqués même en navigateur non-headless), sites agences
       Orpi (Cloudflare). Century21/Laforêt à retenter si besoin.
 - [x] Dédup inter-sites (empreinte) — validé cloud
-- [x] Carte : bug mobile (hauteur 0) corrigé, Leaflet self-hosted, clic fiche -> ouvre l'annonce
+- [x] Carte : bug mobile (hauteur 0) corrigé, Leaflet self-hosted, clic fiche -> ouvre l'annonce (même onglet)
+- [x] Favoris ⭐ (colonne favorite, toggle/filtre carte, persistant Supabase)
+- [x] Suppression annonces disparues (colonne last_seen ; touchSeen + cleanupStale ; seuil STALE_MINUTES=180 ;
+      par source scrapée OK uniquement ; favoris JAMAIS supprimés)
 - [ ] Sécu — rotation clé service_role + token Telegram
 
 ## Note dédup inter-sites (futur)
