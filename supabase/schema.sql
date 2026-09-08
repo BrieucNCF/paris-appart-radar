@@ -27,7 +27,8 @@ create table if not exists public.listings (
   title           text,
   price           int,            -- loyer en €/mois
   surface         int,            -- m²
-  rooms           int,            -- nombre de pièces
+  rooms           int,            -- nombre de pièces (salon inclus)
+  bedrooms        int,            -- nombre de chambres (si dispo, sinon null)
   furnished       boolean,        -- meublé / non meublé (null = inconnu)
   arrondissement  int,            -- 75001..75020 (null si hors Paris / inconnu)
 

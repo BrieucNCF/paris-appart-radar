@@ -23,8 +23,9 @@ Usage strictement personnel.
 Table `listings`, dédup sur `url` normalisée (unique). Voir `supabase/schema.sql`.
 
 ## Avancement
-- [x] Phase 1 — fondations Supabase (schéma + RLS + structure projet)
-- [ ] Phase 2 — bot Telegram
+- [x] Phase 1 — fondations Supabase (schéma + RLS + structure projet) — validé bout en bout
+- [x] Phase 2 — bot Telegram (@paris_appart_radar_bot) : token + chat_id dans .env, template figé
+      (voir docs/message-template.md). Ajouts : date/heure détection, chambres, bouton carte.
 - [ ] Phase 3 — ingestion email (PAP)
 - [ ] Phase 4 — enrichissement + géocodage
 - [ ] Phase 5 — notif Telegram
