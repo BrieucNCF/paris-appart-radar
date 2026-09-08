@@ -1,0 +1,38 @@
+name: Radar poll
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # toutes les 15 minutes (UTC)
+  workflow_dispatch:          # déclenchement manuel depuis l'onglet Actions
+
+# Empêche deux exécutions de se chevaucher
+concurrency:
+  group: radar-poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run radar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MAP_URL: ${{ secrets.MAP_URL }}
+        run: node src/index.mjs
