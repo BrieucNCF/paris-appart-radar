@@ -51,9 +51,17 @@ Table `listings`, dédup sur `url` normalisée (unique). Voir `supabase/schema.s
 - [x] Phase 5 — notif Telegram (photo + infos + boutons) branchée
 - [x] Automatisation — repo public + cron GitHub Actions 15 min (ParuVendu) : run VERT
 - [x] Phase 6 — carte Leaflet live sur GitHub Pages (lit Supabase, filtres, popups, ?id=)
-- [x] Phase 7 (en cours) — Bien'ici ajouté (source API JSON realEstateAds.json, fetch pur,
-      cloud-friendly ✅ ~157 candidats). Cloud = ENABLED_SOURCES=paruvendu,bienici.
-      Reste possible : Logic-immo, Locservice (ROI incertain, Bien'ici agrège déjà beaucoup).
+- [x] Phase 7 — sources :
+      * Bien'ici (API JSON realEstateAds.json, fetch pur) — CLOUD ✅ gros volume
+      * ParuVendu (Playwright) — CLOUD ✅
+      * PAP (Playwright) — LOCAL only (Cloudflare bloque le datacenter)
+      * Foncia (Playwright, .mosaic-list-card, prix via élément-feuille) — LOCAL only (SPA KO en datacenter)
+      Cloud = ENABLED_SOURCES=paruvendu,bienici ; local (npm run poll) = les 4.
+      Écartés : Logic-immo (SPA protégée + doublons Bien'ici), Locservice (payant, pas de flux),
+      Leboncoin/SeLoger (DataDome, bloqués même en navigateur non-headless), sites agences
+      Orpi (Cloudflare). Century21/Laforêt à retenter si besoin.
+- [x] Dédup inter-sites (empreinte) — validé cloud
+- [x] Carte : bug mobile (hauteur 0) corrigé, Leaflet self-hosted, clic fiche -> ouvre l'annonce
 - [ ] Sécu — rotation clé service_role + token Telegram
 
 ## Note dédup inter-sites (futur)
