@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Paris Appart Radar</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  :root {
+    --bg:#f4f5f7; --panel:#ffffff; --text:#1a1c20; --muted:#6b7280;
+    --border:#e3e6ea; --accent:#2563eb; --accent-fg:#fff; --new:#16a34a; --seen:#9ca3af;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1115; --panel:#171a21; --text:#e6e8eb; --muted:#9aa2ad;
+      --border:#262b34; --accent:#3b82f6; --new:#22c55e; --seen:#6b7280;
+      --shadow:0 1px 3px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35); }
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--text); }
+  #app { display:grid; grid-template-columns:380px 1fr; height:100vh; }
+  #sidebar { display:flex; flex-direction:column; border-right:1px solid var(--border);
+    background:var(--panel); min-width:0; }
+  header { padding:14px 16px; border-bottom:1px solid var(--border); }
+  header h1 { margin:0; font-size:16px; font-weight:700; letter-spacing:-.01em; }
+  header .sub { color:var(--muted); font-size:12px; margin-top:2px; }
+  #filters { padding:10px 16px; border-bottom:1px solid var(--border); display:grid; gap:8px; }
+  #filters .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #filters label { font-size:12px; color:var(--muted); min-width:64px; }
+  #filters input[type=range]{ flex:1; accent-color:var(--accent); }
+  select,input[type=number]{ background:var(--bg); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:5px 8px; font-size:13px; }
+  .chip { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--border);
+    background:var(--bg); cursor:pointer; user-select:none; }
+  .chip.on { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
+  #arrs { display:flex; gap:5px; flex-wrap:wrap; }
+  #list { overflow-y:auto; flex:1; }
+  .card { display:flex; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border);
+    cursor:pointer; }
+  .card:hover { background:var(--bg); }
+  .card.seen { opacity:.55; }
+  .card img { width:88px; height:66px; object-fit:cover; border-radius:8px; flex:none; background:var(--bg); }
+  .card .info { min-width:0; flex:1; }
+  .card .price { font-weight:700; font-size:15px; }
+  .card .meta { color:var(--muted); font-size:12px; margin-top:2px; }
+  .card .badges { margin-top:4px; display:flex; gap:5px; align-items:center; }
+  .badge { font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; text-transform:uppercase; }
+  .badge.new { background:var(--new); color:#fff; }
+  .badge.src { background:var(--bg); color:var(--muted); border:1px solid var(--border); }
+  #map { height:100vh; }
+  .leaflet-popup-content { margin:10px 12px; }
+  .pop img { width:100%; height:150px; object-fit:cover; border-radius:8px; margin-bottom:8px; background:#0002; }
+  .pop .price { font-weight:700; font-size:16px; }
+  .pop .meta { color:#555; font-size:12px; margin:3px 0 8px; }
+  .pop a.btn { display:inline-block; background:var(--accent); color:#fff; text-decoration:none;
+    padding:7px 12px; border-radius:8px; font-weight:600; font-size:13px; }
+  #empty { padding:24px 16px; color:var(--muted); text-align:center; }
+  #reload { position:absolute; z-index:1000; top:10px; right:10px; }
+  #reload button { background:var(--panel); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:7px 12px; box-shadow:var(--shadow); cursor:pointer; font-size:13px; }
+  @media (max-width:760px){
+    #app { grid-template-columns:1fr; grid-template-rows:45vh 55vh; }
+    #map { height:auto; } #sidebar{ border-right:none; border-bottom:1px solid var(--border);}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <header>
+      <h1>🏠 Paris Appart Radar</h1>
+      <div class="sub" id="count">Chargement…</div>
+    </header>
+    <div id="filters">
+      <div class="row">
+        <label>Prix max</label>
+        <input type="range" id="fPrice" min="500" max="2500" step="50" />
+        <span id="fPriceVal" style="min-width:60px;text-align:right;font-weight:600"></span>
+      </div>
+      <div class="row">
+        <label>Pièces min</label>
+        <select id="fRooms"><option value="0">Toutes</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+        <label style="min-width:0">Source</label>
+        <select id="fSource"><option value="">Toutes</option></select>
+        <label style="min-width:0"><input type="checkbox" id="fHideSeen" /> masquer vus</label>
+      </div>
+      <div class="row"><label>Arrond.</label><div id="arrs"></div></div>
+    </div>
+    <div id="list"></div>
+    <div id="empty" style="display:none">Aucune annonce ne correspond aux filtres.</div>
+  </aside>
+  <div style="position:relative">
+    <div id="reload"><button id="btnReload">↻ Rafraîchir</button></div>
+    <div id="map"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+// --- Config Supabase (clé anon = publique par design ; RLS protège l'écriture) ---
+const SUPABASE_URL = "https://mxlwczkycgvkjnruspbw.supabase.co";
+const SUPABASE_ANON = "sb_publishable_YUbRiqZ3DKGYP6bW0Rj9Lw_xasVXsag";
+const ARRS = [3,5,6,11,12,13,18,19,20];
+
+const state = { listings: [], markers: new Map(), filters: {
+  price: 1800, rooms: 0, source: "", hideSeen: false, arrs: new Set(ARRS),
+}};
+
+const map = L.map('map', { zoomControl:true }).setView([48.8566, 2.3522], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '© OpenStreetMap'
+}).addTo(map);
+
+const layer = L.layerGroup().addTo(map);
+const $ = (id) => document.getElementById(id);
+const isNew = (l) => (Date.now() - new Date(l.created_at).getTime()) < 24*3600*1000;
+const fmtEuro = (p) => p==null ? "Prix NC" : p.toLocaleString('fr-FR')+" €";
+const arrLabel = (a) => a ? "Paris "+(a%1000)+"e" : "Paris";
+
+function metaLine(l){
+  const b=[];
+  if(l.rooms!=null) b.push(l.rooms+" p");
+  if(l.bedrooms!=null) b.push(l.bedrooms+" ch");
+  if(l.surface!=null) b.push(l.surface+" m²");
+  if(l.furnished===true) b.push("meublé"); else if(l.furnished===false) b.push("non meublé");
+  return arrLabel(l.arrondissement)+" · "+b.join(" · ");
+}
+
+async function markSeen(id){
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/listings?id=eq.${id}`,{
+      method:'PATCH',
+      headers:{apikey:SUPABASE_ANON,Authorization:`Bearer ${SUPABASE_ANON}`,'Content-Type':'application/json'},
+      body:JSON.stringify({seen:true})
+    });
+    const l=state.listings.find(x=>x.id===id); if(l) l.seen=true; render();
+  }catch(e){ console.warn(e); }
+}
+window.__markSeen = markSeen;
+
+function popupHtml(l){
+  const img = (l.photo_url && /^https?:/.test(l.photo_url)) ? `<img src="${l.photo_url}" onerror="this.style.display='none'">` : '';
+  return `<div class="pop">${img}
+    <div class="price">${fmtEuro(l.price)}${isNew(l)?' 🆕':''}</div>
+    <div class="meta">${metaLine(l)}</div>
+    <a class="btn" href="${l.url}" target="_blank" rel="noopener">Voir l’annonce ↗</a>
+    <a class="btn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-left:6px"
+       href="#" onclick="__markSeen('${l.id}');return false">Marquer vu</a>
+  </div>`;
+}
+
+function passes(l){
+  const f=state.filters;
+  if(l.price!=null && l.price>f.price) return false;
+  if(f.rooms && !(l.rooms>=f.rooms)) return false;
+  if(f.source && l.source!==f.source) return false;
+  if(f.hideSeen && l.seen) return false;
+  if(l.arrondissement && !f.arrs.has(l.arrondissement%1000)) return false;
+  return true;
+}
+
+function render(){
+  const items = state.listings.filter(passes);
+  // liste
+  const list=$('list'); list.innerHTML='';
+  layer.clearLayers(); state.markers.clear();
+  items.forEach(l=>{
+    // carte liste
+    const div=document.createElement('div');
+    div.className='card'+(l.seen?' seen':'');
+    const img=(l.photo_url&&/^https?:/.test(l.photo_url))?`<img src="${l.photo_url}" onerror="this.style.visibility='hidden'">`:`<img>`;
+    div.innerHTML=`${img}<div class="info">
+      <div class="price">${fmtEuro(l.price)}</div>
+      <div class="meta">${metaLine(l)}</div>
+      <div class="badges">${isNew(l)?'<span class="badge new">Nouveau</span>':''}<span class="badge src">${l.source}</span></div>
+    </div>`;
+    div.onclick=()=>{ if(l.lat&&l.lng){ map.setView([l.lat,l.lng],15); const m=state.markers.get(l.id); if(m) m.openPopup(); } };
+    list.appendChild(div);
+    // marqueur
+    if(l.lat&&l.lng){
+      const m=L.circleMarker([l.lat,l.lng],{
+        radius:9, weight:2, color:'#fff',
+        fillColor: l.seen?getVar('--seen'):(isNew(l)?getVar('--new'):getVar('--accent')),
+        fillOpacity:.95
+      }).bindPopup(popupHtml(l));
+      m.addTo(layer); state.markers.set(l.id,m);
+    }
+  });
+  $('empty').style.display = items.length? 'none':'block';
+  const nNew = items.filter(isNew).length;
+  $('count').textContent = `${items.length} annonce${items.length>1?'s':''}${nNew?` · ${nNew} nouvelle${nNew>1?'s':''} (24h)`:''}`;
+}
+function getVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+async function load(){
+  $('count').textContent='Chargement…';
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/listings?select=*&order=created_at.desc&limit=500`,
+      {headers:{apikey:SUPABASE_ANON,Authorization:`Bearer ${SUPABASE_ANON}`}});
+    state.listings=await res.json();
+    // remplir le select source
+    const sources=[...new Set(state.listings.map(l=>l.source))].sort();
+    const sel=$('fSource'); sel.length=1;
+    sources.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
+    render();
+  }catch(e){ $('count').textContent='Erreur de chargement'; console.error(e); }
+}
+
+// --- Filtres UI ---
+function buildArrs(){
+  const box=$('arrs');
+  ARRS.forEach(a=>{
+    const c=document.createElement('span'); c.className='chip on'; c.textContent=a;
+    c.onclick=()=>{ c.classList.toggle('on'); if(c.classList.contains('on')) state.filters.arrs.add(a); else state.filters.arrs.delete(a); render(); };
+    box.appendChild(c);
+  });
+}
+$('fPrice').value=1800; $('fPriceVal').textContent='1 800 €';
+$('fPrice').oninput=(e)=>{ state.filters.price=+e.target.value; $('fPriceVal').textContent=(+e.target.value).toLocaleString('fr-FR')+' €'; render(); };
+$('fRooms').onchange=(e)=>{ state.filters.rooms=+e.target.value; render(); };
+$('fSource').onchange=(e)=>{ state.filters.source=e.target.value; render(); };
+$('fHideSeen').onchange=(e)=>{ state.filters.hideSeen=e.target.checked; render(); };
+$('btnReload').onclick=load;
+buildArrs();
+load();
+setInterval(load, 120000); // rafraîchit toutes les 2 min
+
+// Ouvre le popup d'une annonce si ?id=... (bouton "Voir sur la carte" de Telegram)
+const wantId=new URLSearchParams(location.search).get('id');
+if(wantId){ const t=setInterval(()=>{ const m=state.markers.get(wantId); if(m){ const l=state.listings.find(x=>x.id===wantId); if(l&&l.lat){ map.setView([l.lat,l.lng],15); m.openPopup(); } clearInterval(t); } },300); setTimeout(()=>clearInterval(t),8000); }
+</script>
+</body>
+</html>
