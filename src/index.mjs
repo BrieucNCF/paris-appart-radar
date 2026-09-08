@@ -9,8 +9,9 @@ import { sendListing } from './lib/telegram.mjs';
 import * as pap from './sources/pap.mjs';
 import * as paruvendu from './sources/paruvendu.mjs';
 import * as bienici from './sources/bienici.mjs';
+import * as foncia from './sources/foncia.mjs';
 
-const SOURCES = { pap, paruvendu, bienici };
+const SOURCES = { pap, paruvendu, bienici, foncia };
 
 loadDotEnv();
 const argv = process.argv.slice(2);
