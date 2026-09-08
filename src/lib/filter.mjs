@@ -1,3 +1,11 @@
+// Empreinte pour dédup INTER-sites : une même annonce publiée sur 2 sites
+// (URLs différentes) partage arrondissement/prix/surface/pièces.
+// Retourne null si l'info est trop incomplète pour comparer sans risque.
+export function fingerprint(l) {
+  if (l.price == null || l.surface == null || l.arrondissement == null) return null;
+  return `${l.arrondissement}|${l.price}|${l.surface}|${l.rooms ?? 'x'}`;
+}
+
 // Applique les critères de recherche à une annonce brute extraite d'un site.
 // Retourne { keep: bool, reason: string } pour pouvoir logguer les rejets.
 

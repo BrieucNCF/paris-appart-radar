@@ -4,8 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Paris Appart Radar</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="vendor/leaflet.css" />
 <style>
   :root {
     --bg:#f4f5f7; --panel:#ffffff; --text:#1a1c20; --muted:#6b7280;
@@ -47,10 +46,16 @@
   .card .price { font-weight:700; font-size:15px; }
   .card .meta { color:var(--muted); font-size:12px; margin-top:2px; }
   .card .badges { margin-top:4px; display:flex; gap:5px; align-items:center; }
+  .card .actions { margin-top:6px; display:flex; gap:6px; }
+  .card .actions a.go { background:var(--accent); color:#fff; text-decoration:none; font-size:12px;
+    font-weight:600; padding:4px 9px; border-radius:7px; }
+  .card .actions button.loc { background:var(--bg); color:var(--text); border:1px solid var(--border);
+    font-size:12px; padding:4px 9px; border-radius:7px; cursor:pointer; }
   .badge { font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; text-transform:uppercase; }
   .badge.new { background:var(--new); color:#fff; }
   .badge.src { background:var(--bg); color:var(--muted); border:1px solid var(--border); }
-  #map { height:100vh; }
+  #mapwrap { position:relative; height:100%; min-height:300px; }
+  #map { position:absolute; inset:0; height:100%; width:100%; background:var(--bg); }
   .leaflet-popup-content { margin:10px 12px; }
   .pop img { width:100%; height:150px; object-fit:cover; border-radius:8px; margin-bottom:8px; background:#0002; }
   .pop .price { font-weight:700; font-size:16px; }
@@ -62,8 +67,8 @@
   #reload button { background:var(--panel); color:var(--text); border:1px solid var(--border);
     border-radius:8px; padding:7px 12px; box-shadow:var(--shadow); cursor:pointer; font-size:13px; }
   @media (max-width:760px){
-    #app { grid-template-columns:1fr; grid-template-rows:45vh 55vh; }
-    #map { height:auto; } #sidebar{ border-right:none; border-bottom:1px solid var(--border);}
+    #app { grid-template-columns:1fr; grid-template-rows:50vh 50vh; height:100dvh; }
+    #sidebar{ border-right:none; border-bottom:1px solid var(--border);}
   }
 </style>
 </head>
@@ -92,14 +97,13 @@
     <div id="list"></div>
     <div id="empty" style="display:none">Aucune annonce ne correspond aux filtres.</div>
   </aside>
-  <div style="position:relative">
+  <div id="mapwrap">
     <div id="reload"><button id="btnReload">↻ Rafraîchir</button></div>
     <div id="map"></div>
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="vendor/leaflet.js"></script>
 <script>
 // --- Config Supabase (clé anon = publique par design ; RLS protège l'écriture) ---
 const SUPABASE_URL = "https://mxlwczkycgvkjnruspbw.supabase.co";
@@ -142,6 +146,15 @@ async function markSeen(id){
 }
 window.__markSeen = markSeen;
 
+function locate(l){
+  if(!(l.lat&&l.lng)) return;
+  map.invalidateSize();
+  map.setView([l.lat,l.lng],15);
+  const m=state.markers.get(l.id); if(m) m.openPopup();
+}
+// Corrige les cartes "grises" quand la taille du conteneur change (layout, mobile, rotation)
+window.addEventListener('resize', ()=>map.invalidateSize());
+
 function popupHtml(l){
   const img = (l.photo_url && /^https?:/.test(l.photo_url)) ? `<img src="${l.photo_url}" onerror="this.style.display='none'">` : '';
   return `<div class="pop">${img}
@@ -177,8 +190,15 @@ function render(){
       <div class="price">${fmtEuro(l.price)}</div>
       <div class="meta">${metaLine(l)}</div>
       <div class="badges">${isNew(l)?'<span class="badge new">Nouveau</span>':''}<span class="badge src">${l.source}</span></div>
+      <div class="actions">
+        <a class="go" href="${l.url}" target="_blank" rel="noopener">Voir l’annonce ↗</a>
+        <button class="loc" type="button">📍 Carte</button>
+      </div>
     </div>`;
-    div.onclick=()=>{ if(l.lat&&l.lng){ map.setView([l.lat,l.lng],15); const m=state.markers.get(l.id); if(m) m.openPopup(); } };
+    // clic sur la fiche (hors boutons) -> ouvre l'annonce sur le site d'origine
+    div.onclick=()=>window.open(l.url,'_blank','noopener');
+    div.querySelector('a.go').onclick=(e)=>e.stopPropagation();
+    div.querySelector('button.loc').onclick=(e)=>{ e.stopPropagation(); locate(l); };
     list.appendChild(div);
     // marqueur
     if(l.lat&&l.lng){
@@ -190,6 +210,7 @@ function render(){
       m.addTo(layer); state.markers.set(l.id,m);
     }
   });
+  setTimeout(()=>map.invalidateSize(), 50);
   $('empty').style.display = items.length? 'none':'block';
   const nNew = items.filter(isNew).length;
   $('count').textContent = `${items.length} annonce${items.length>1?'s':''}${nNew?` · ${nNew} nouvelle${nNew>1?'s':''} (24h)`:''}`;
