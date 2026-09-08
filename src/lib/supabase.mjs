@@ -45,3 +45,46 @@ export async function insertNew(listings) {
   }
   return res.json();
 }
+
+/**
+ * Marque `last_seen = now()` pour les annonces encore présentes (par url).
+ * @param {string[]} urls
+ */
+export async function touchSeen(urls) {
+  if (!urls.length) return;
+  const nowIso = new Date().toISOString();
+  // PostgREST limite la taille de l'URL -> on découpe en lots.
+  for (let i = 0; i < urls.length; i += 40) {
+    const batch = urls.slice(i, i + 40);
+    const inList = batch.map((u) => `"${u.replace(/"/g, '')}"`).join(',');
+    const url = `${env.SUPABASE_URL()}/rest/v1/listings?url=in.(${encodeURIComponent(inList)})`;
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { ...headers(), Prefer: 'return=minimal' },
+      body: JSON.stringify({ last_seen: nowIso }),
+    });
+    if (!res.ok) console.warn(`touchSeen ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+}
+
+/**
+ * Supprime les annonces d'une source qui n'ont pas été revues depuis `minutes`
+ * (donc plus en ligne). NE SUPPRIME JAMAIS un favori.
+ * @returns {Promise<number>} nombre d'annonces supprimées
+ */
+export async function cleanupStale(sources, minutes) {
+  if (!sources.length) return 0;
+  const cutoff = new Date(Date.now() - minutes * 60 * 1000).toISOString();
+  const inSrc = sources.map((s) => `"${s}"`).join(',');
+  const url = `${env.SUPABASE_URL()}/rest/v1/listings`
+    + `?source=in.(${encodeURIComponent(inSrc)})`
+    + `&favorite=eq.false`
+    + `&last_seen=lt.${encodeURIComponent(cutoff)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { ...headers(), Prefer: 'return=representation' },
+  });
+  if (!res.ok) { console.warn(`cleanupStale ${res.status}: ${(await res.text()).slice(0, 200)}`); return 0; }
+  const rows = await res.json();
+  return rows.length;
+}

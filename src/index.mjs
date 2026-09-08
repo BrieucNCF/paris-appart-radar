@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 import { loadDotEnv, criteria } from './lib/config.mjs';
 import { matchesCriteria, fingerprint } from './lib/filter.mjs';
 import { geocodeArrondissement } from './lib/geo.mjs';
-import { insertNew, fetchFingerprints } from './lib/supabase.mjs';
+import { insertNew, fetchFingerprints, touchSeen, cleanupStale } from './lib/supabase.mjs';
 import { sendListing } from './lib/telegram.mjs';
 
 import * as pap from './sources/pap.mjs';
@@ -76,6 +76,7 @@ async function main() {
   const needsBrowser = chosen.some((s) => !s.fetchListings);
   const browser = needsBrowser ? await chromium.launch({ headless: true }) : null;
   let candidates = [];
+  const scrapedOk = []; // sources ayant réellement renvoyé des annonces (pour le cleanup)
   try {
     for (const src of chosen) {
       let raw = [];
@@ -85,6 +86,7 @@ async function main() {
       } else {
         raw = await scrapeSource(browser, src);
       }
+      if (raw.length) scrapedOk.push(src.name);
       const rows = raw.map((r) => normalize(src.name, r));
       // filtre critères
       const kept = [];
@@ -98,6 +100,9 @@ async function main() {
   } finally {
     if (browser) await browser.close();
   }
+
+  // toutes les annonces matchantes vues ce run (pour rafraîchir last_seen)
+  const presentUrls = [...new Set(candidates.map((c) => c.url))];
 
   // dédup intra-lot par url
   const seenUrl = new Set();
@@ -131,6 +136,13 @@ async function main() {
 
   const fresh = await insertNew(toInsert);
   console.log(`\n${fresh.length} nouvelle(s) annonce(s) (dédup Supabase).`);
+
+  // Disponibilité : rafraîchit les annonces encore en ligne, puis supprime celles
+  // qui ont disparu (uniquement pour les sources scrapées avec succès ; jamais les favoris).
+  await touchSeen(presentUrls);
+  const staleMin = +(process.env.STALE_MINUTES || 180); // 3 h par défaut (robuste aux ratés transitoires)
+  const deleted = await cleanupStale(scrapedOk, staleMin);
+  if (deleted) console.log(`${deleted} annonce(s) supprimée(s) (plus en ligne).`);
 
   let sent = 0;
   for (const l of fresh) {

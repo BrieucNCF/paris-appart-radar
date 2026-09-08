@@ -51,6 +51,9 @@
     font-weight:600; padding:4px 9px; border-radius:7px; }
   .card .actions button.loc { background:var(--bg); color:var(--text); border:1px solid var(--border);
     font-size:12px; padding:4px 9px; border-radius:7px; cursor:pointer; }
+  .card .actions button.fav { background:var(--bg); color:var(--muted); border:1px solid var(--border);
+    font-size:14px; line-height:1; padding:3px 8px; border-radius:7px; cursor:pointer; }
+  .card .actions button.fav.on { color:#f5a623; border-color:#f5a623; }
   .badge { font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; text-transform:uppercase; }
   .badge.new { background:var(--new); color:#fff; }
   .badge.src { background:var(--bg); color:var(--muted); border:1px solid var(--border); }
@@ -91,6 +94,7 @@
         <label style="min-width:0">Source</label>
         <select id="fSource"><option value="">Toutes</option></select>
         <label style="min-width:0"><input type="checkbox" id="fHideSeen" /> masquer vus</label>
+        <label style="min-width:0"><input type="checkbox" id="fFav" /> ⭐ favoris</label>
       </div>
       <div class="row"><label>Arrond.</label><div id="arrs"></div></div>
     </div>
@@ -111,7 +115,7 @@ const SUPABASE_ANON = "sb_publishable_YUbRiqZ3DKGYP6bW0Rj9Lw_xasVXsag";
 const ARRS = [3,5,6,11,12,13,18,19,20];
 
 const state = { listings: [], markers: new Map(), filters: {
-  price: 1800, rooms: 0, source: "", hideSeen: false, arrs: new Set(ARRS),
+  price: 1800, rooms: 0, source: "", hideSeen: false, favOnly: false, arrs: new Set(ARRS),
 }};
 
 const map = L.map('map', { zoomControl:true }).setView([48.8566, 2.3522], 12);
@@ -155,14 +159,25 @@ function locate(l){
 // Corrige les cartes "grises" quand la taille du conteneur change (layout, mobile, rotation)
 window.addEventListener('resize', ()=>map.invalidateSize());
 
+async function toggleFav(l){
+  const nv=!l.favorite;
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/listings?id=eq.${l.id}`,{method:'PATCH',
+      headers:{apikey:SUPABASE_ANON,Authorization:`Bearer ${SUPABASE_ANON}`,'Content-Type':'application/json'},
+      body:JSON.stringify({favorite:nv})});
+    l.favorite=nv; render();
+  }catch(e){ console.warn(e); }
+}
+window.__toggleFav=(id)=>{ const l=state.listings.find(x=>x.id===id); if(l) toggleFav(l); };
+
 function popupHtml(l){
   const img = (l.photo_url && /^https?:/.test(l.photo_url)) ? `<img src="${l.photo_url}" onerror="this.style.display='none'">` : '';
   return `<div class="pop">${img}
     <div class="price">${fmtEuro(l.price)}${isNew(l)?' 🆕':''}</div>
     <div class="meta">${metaLine(l)}</div>
-    <a class="btn" href="${l.url}" target="_blank" rel="noopener">Voir l’annonce ↗</a>
-    <a class="btn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-left:6px"
-       href="#" onclick="__markSeen('${l.id}');return false">Marquer vu</a>
+    <a class="btn" href="${l.url}">Voir l’annonce</a>
+    <a class="btn" style="background:transparent;color:${l.favorite?'#f5a623':'var(--accent)'};border:1px solid ${l.favorite?'#f5a623':'var(--accent)'};margin-left:6px"
+       href="#" onclick="__toggleFav('${l.id}');return false">${l.favorite?'★ Favori':'☆ Favori'}</a>
   </div>`;
 }
 
@@ -172,6 +187,7 @@ function passes(l){
   if(f.rooms && !(l.rooms>=f.rooms)) return false;
   if(f.source && l.source!==f.source) return false;
   if(f.hideSeen && l.seen) return false;
+  if(f.favOnly && !l.favorite) return false;
   if(l.arrondissement && !f.arrs.has(l.arrondissement%1000)) return false;
   return true;
 }
@@ -191,13 +207,15 @@ function render(){
       <div class="meta">${metaLine(l)}</div>
       <div class="badges">${isNew(l)?'<span class="badge new">Nouveau</span>':''}<span class="badge src">${l.source}</span></div>
       <div class="actions">
-        <a class="go" href="${l.url}" target="_blank" rel="noopener">Voir l’annonce ↗</a>
+        <a class="go" href="${l.url}">Voir l’annonce</a>
+        <button class="fav${l.favorite?' on':''}" type="button" title="Favori">${l.favorite?'★':'☆'}</button>
         <button class="loc" type="button">📍 Carte</button>
       </div>
     </div>`;
-    // clic sur la fiche (hors boutons) -> ouvre l'annonce sur le site d'origine
-    div.onclick=()=>window.open(l.url,'_blank','noopener');
+    // clic sur la fiche (hors boutons) -> ouvre l'annonce sur le site (même onglet)
+    div.onclick=()=>{ location.href=l.url; };
     div.querySelector('a.go').onclick=(e)=>e.stopPropagation();
+    div.querySelector('button.fav').onclick=(e)=>{ e.stopPropagation(); toggleFav(l); };
     div.querySelector('button.loc').onclick=(e)=>{ e.stopPropagation(); locate(l); };
     list.appendChild(div);
     // marqueur
@@ -245,6 +263,7 @@ $('fPrice').oninput=(e)=>{ state.filters.price=+e.target.value; $('fPriceVal').t
 $('fRooms').onchange=(e)=>{ state.filters.rooms=+e.target.value; render(); };
 $('fSource').onchange=(e)=>{ state.filters.source=e.target.value; render(); };
 $('fHideSeen').onchange=(e)=>{ state.filters.hideSeen=e.target.checked; render(); };
+$('fFav').onchange=(e)=>{ state.filters.favOnly=e.target.checked; render(); };
 $('btnReload').onclick=load;
 buildArrs();
 load();

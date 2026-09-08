@@ -33,6 +33,8 @@ create table if not exists public.listings (
 
   raw_email_id    text,           -- id du mail source (traçabilité / anti-retraitement)
   seen            boolean not null default false,  -- coché "vu" côté carte
+  favorite        boolean not null default false,  -- ⭐ favori côté carte
+  last_seen       timestamptz not null default now(),  -- dernière fois vue dans un scrape
 
   created_at      timestamptz not null default now(),  -- date de détection
   updated_at      timestamptz not null default now()
