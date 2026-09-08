@@ -1,0 +1,10 @@
+{
+  "priceMax": 1800,
+  "surfaceMin": 30,
+  "arrondissements": [3, 5, 6, 11, 12, 13, 18, 19, 20],
+  "roomsMin": 3,
+  "bedroomsMin": 2,
+  "roomsOrBedrooms": true,
+  "furnished": "any",
+  "_comment": "roomsOrBedrooms=true => on garde une annonce si rooms>=roomsMin OU bedrooms>=bedroomsMin. furnished: 'any' | 'furnished' | 'unfurnished'."
+}

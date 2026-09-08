@@ -1,0 +1,15 @@
+{
+  "name": "paris-appart-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Radar perso d'annonces de location Paris : scrape multi-sites -> Supabase -> Telegram + carte",
+  "scripts": {
+    "poll": "node src/index.mjs",
+    "poll:dry": "DRY_RUN=1 node src/index.mjs",
+    "test:pap": "node src/index.mjs --only pap --dry"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}
