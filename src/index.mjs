@@ -16,6 +16,9 @@ const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry') || process.env.DRY_RUN === '1';
 const onlyIdx = argv.indexOf('--only');
 const only = onlyIdx >= 0 ? argv[onlyIdx + 1] : null;
+// ENABLED_SOURCES=paruvendu,locservice pour restreindre (ex. sur GitHub Actions
+// où PAP est bloqué par Cloudflare depuis les IP datacenter). Vide = toutes.
+const enabled = (process.env.ENABLED_SOURCES || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
@@ -63,7 +66,8 @@ async function scrapeSource(browser, src) {
 }
 
 async function main() {
-  const chosen = Object.values(SOURCES).filter((s) => !only || s.name === only);
+  const chosen = Object.values(SOURCES).filter((s) =>
+    (!only || s.name === only) && (!enabled.length || enabled.includes(s.name)));
   console.log(`Radar — sources: ${chosen.map((s) => s.name).join(', ')}${DRY ? ' (DRY RUN)' : ''}`);
 
   const browser = await chromium.launch({ headless: true });

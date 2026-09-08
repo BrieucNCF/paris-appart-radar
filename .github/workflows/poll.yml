@@ -35,4 +35,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MAP_URL: ${{ secrets.MAP_URL }}
+          # Sur GitHub (IP datacenter), PAP est bloqué par Cloudflare -> on ne
+          # lance que les sources cloud-friendly. PAP tourne en local (npm run poll).
+          ENABLED_SOURCES: paruvendu
         run: node src/index.mjs

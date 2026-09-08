@@ -8,18 +8,11 @@
 create extension if not exists pgcrypto;   -- gen_random_uuid()
 -- pg_cron / pg_net seront activés en Phase 3 (poll email planifié).
 
--- --- Enum des sources -------------------------------------------------
-do $$
-begin
-  if not exists (select 1 from pg_type where typname = 'listing_source') then
-    create type listing_source as enum ('pap', 'leboncoin', 'seloger', 'bienici', 'autre');
-  end if;
-end$$;
-
 -- --- Table principale -------------------------------------------------
+-- `source` en text (et non enum) : ajouter un nouveau site ne demande aucune migration.
 create table if not exists public.listings (
   id              uuid primary key default gen_random_uuid(),
-  source          listing_source not null default 'autre',
+  source          text not null default 'autre',
 
   -- clé de déduplication : URL normalisée (sans query/fragment ni slash final)
   url             text not null unique,
